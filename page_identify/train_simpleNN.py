@@ -31,10 +31,11 @@ from page_identify import data_Processer
 
 # 输入数据的一些参数
 tf.flags.DEFINE_float("validation_percentage",0.1,"所有的训练数据用来验证的比例")
-tf.flags.DEFINE_string("input_data_file", "./data/feature4.csv", "正样本数据")
+tf.flags.DEFINE_string("positive_data_file", "./data/PositiveFile6.csv", "正样本数据")
+tf.flags.DEFINE_string("negative_data_file", "./data/NegativeFile6.csv", "负样本数据")
 
 #模型中的参数
-tf.flags.DEFINE_integer("input_node", 8, "输入的维度") #8个特征
+tf.flags.DEFINE_integer("input_node", 6, "输入的维度") #8个特征
 tf.flags.DEFINE_integer("embedding_node", 200, "隐藏层的维度")
 tf.flags.DEFINE_integer("output_node", 2, "输出层的维度") #2分类
 tf.flags.DEFINE_float("l2_reg_lambda", 0.0001, "L2 正则化比例")
@@ -43,8 +44,8 @@ tf.flags.DEFINE_float("l2_reg_lambda", 0.0001, "L2 正则化比例")
 tf.flags.DEFINE_float("learning_rate_base", 0.8, "基础学习率")
 tf.flags.DEFINE_float("learning_rate_decay", 0.99, "学习率衰减率")
 tf.flags.DEFINE_float("moving_average_decay", 0.99, "滑动平均衰减率")
-tf.flags.DEFINE_integer("batch_size", 1000, "Batch大小")
-tf.flags.DEFINE_integer("num_examples", 3800, "输入数据的数目")
+tf.flags.DEFINE_integer("batch_size", 500, "Batch大小")
+tf.flags.DEFINE_integer("num_examples", 4800, "输入数据的数目")
 tf.flags.DEFINE_integer("num_steps", 200, "训练的次数")
 tf.flags.DEFINE_integer("evaluate_every", 100, "评价的间隔步数")
 tf.flags.DEFINE_integer("checkpoint_every", 100, "保存模型的间隔步数")
@@ -76,7 +77,7 @@ if not os.path.exists(out_dir):
 # 加载数据
 #=====================================================
 print("\nLoading data...")
-x, y_ = data_Processer.load_csv_file(FLAGS.input_data_file)
+x, y_ = data_Processer.load_positive_negtive_data_files(FLAGS.positive_data_file,FLAGS.negative_data_file)
 print(x,y_)
 print("\nloaded!")
 

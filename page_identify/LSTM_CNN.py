@@ -17,14 +17,20 @@
 #          LSTM_CNN模型兼具了RNN和CNN的优点，考虑了句子的序列信息，又能捕捉关键信息 但是 没法并行计算，因此，训练时速度要比FastText和TextCNN慢得多
 # creatData:2019/5/10
 import tensorflow as tf
-import numpy as np
-from IPython import embed
 
 
 class LSTM_CNN(object):
-    def __init__(self, sequence_length, num_classes, vocab_size, embedding_size, filter_sizes, num_filters,
-                 l2_reg_lambda=0.0, num_hidden=100):
-        # PLACEHOLDERS
+    def __init__(self,
+                 sequence_length,
+                 num_classes,
+                 vocab_size,
+                 embedding_size,
+                 filter_sizes,
+                 num_filters,
+                 l2_reg_lambda=0.0,
+                 num_hidden=100):
+
+        #输入训练数据与验证数据以及dropout层
         self.input_x = tf.placeholder(tf.int32, [None, sequence_length], name="input_x")  # X - The Data
         self.input_y = tf.placeholder(tf.float32, [None, num_classes], name="input_y")  # Y - The Lables
         self.dropout_keep_prob = tf.placeholder(tf.float32, name="dropout_keep_prob")  # Dropout
@@ -92,8 +98,6 @@ class LSTM_CNN(object):
             correct_predictions = tf.equal(self.predictions, tf.argmax(self.input_y, 1))
             self.accuracy = tf.reduce_mean(tf.cast(correct_predictions, "float"), name="accuracy")
 
-        print
-        "(!!) LOADED LSTM-CNN! :)"
         # embed()
 
 # 1. Embed --> LSTM

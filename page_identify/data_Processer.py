@@ -21,32 +21,43 @@ import numpy as np
 import pandas as  pd
 
 
-def load_csv_file(input_file,cols=9):
+def load_csv_file(input_file,cols=7):
     '''
-    加载特征和标签
-    :param input_file: csv文件  默认最后一行为标签
+    加载特征
+    :param input_file: csv文件  默认第一行为文件名 要去除
+           cols 行数
     :return:
     '''
 
     #加载文件
     csv_data=pd.read_csv(input_file,usecols=[i for i in range(1,cols)])
-    csv_label=pd.read_csv(input_file,usecols=[cols])
-
-    #label 转换 0-> 1,0  1->0,1
-    label_extend=[]
-    for label in np.array(csv_label):
-        if label== 0:
-            label_extend.append([1,0])
-        else:
-            label_extend.append([0,1])
-    label_extend=np.array(label_extend,dtype=int)
 
     #转换数据
     data=np.float32(csv_data)
-    label=np.array(label_extend)
 
     #返回数据
-    return (data,label)
+    return data
+
+def load_positive_negtive_data_files(positive_file,negative_file):
+    '''
+    加载正向数据和负向数据  并添加标签混合
+    :param positive_file: 正向数据
+    :param negative_file: 负向数据
+    :return:
+    '''
+
+    positive_examples=load_csv_file(positive_file)
+    negative_examples=load_csv_file(negative_file)
+
+    #生成标签
+    positive_labels=[[0,1] for _ in positive_examples]
+    negative_labels=[[1,0] for _ in negative_examples]
+
+    #分别混合数据与标签
+    x=np.concatenate([positive_examples,negative_examples],0)
+    y=np.concatenate([positive_labels,negative_labels],0)
+
+    return (x,y)
 
 def batch_iter(data, batch_size, num_epochs, shuffle=True):
     '''
@@ -69,4 +80,6 @@ def batch_iter(data, batch_size, num_epochs, shuffle=True):
 
 if __name__ == '__main__':
 
-    print(load_csv_file("./data/feature4.csv"))
+    print(load_csv_file("./data/NegativeFile6.csv"))
+    print(load_csv_file("./data/PositiveFile6.csv"))
+    print(load_positive_negtive_data_files("./data/PositiveFile6.csv","./data/NegativeFile6.csv"))
