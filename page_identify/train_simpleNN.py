@@ -41,8 +41,8 @@ tf.flags.DEFINE_integer("output_node", 2, "输出层的维度") #2分类
 tf.flags.DEFINE_float("l2_reg_lambda", 0.0001, "L2 正则化比例")
 
 # 训练的一些参数
-tf.flags.DEFINE_float("learning_rate_base", 0.8, "基础学习率")
-tf.flags.DEFINE_float("learning_rate_decay", 0.99, "学习率衰减率")
+tf.flags.DEFINE_float("learning_rate_base", 0.2, "基础学习率")
+tf.flags.DEFINE_float("learning_rate_decay", 0.999, "学习率衰减率")
 tf.flags.DEFINE_float("moving_average_decay", 0.99, "滑动平均衰减率")
 tf.flags.DEFINE_integer("batch_size", 500, "Batch大小")
 tf.flags.DEFINE_integer("num_examples", 4800, "输入数据的数目")

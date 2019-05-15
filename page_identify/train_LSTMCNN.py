@@ -9,11 +9,11 @@
 #  |    |  |    |       |    |
 #  |____|  |____|       |____|
 #
-# fileName:train_LSTMCNN
+# fileName:train_LSTMCNN 
 # project: Fish_learning
 # author: theo_hui
 # e-mail:Theo_hui@163.com
-# purpose: 对TextCNN模型进行训练 直接对URL进行训练
+# purpose: 对LSTM_CNN模型进行训练
 # creatData:2019/5/14
 
 import os
@@ -22,6 +22,8 @@ import time
 import tensorflow as tf
 import numpy as np
 
+from page_identify.LSTM_CNN import LSTM_CNN
+from page_identify.CNN_LSTM import CNN_LSTM
 from page_identify.TextCNN import TextCNN
 from page_identify import data_Processer
 
@@ -65,7 +67,7 @@ print("=========================================================================
 # 输出数据和模型的目录
 # =======================================================
 timestamp = str(int(time.time()))
-out_dir = os.path.abspath(os.path.join(os.path.curdir, "output/textCNN/runs",timestamp))
+out_dir = os.path.abspath(os.path.join(os.path.curdir, "output/LSTM_CNN/runs",timestamp))
 print("\nWriting to {}\n".format(out_dir))
 if not os.path.exists(out_dir):
     os.makedirs(out_dir)
@@ -118,7 +120,7 @@ with tf.Graph().as_default():
     sess = tf.Session(config=session_conf)
 
     with sess.as_default():
-        text_cnn = TextCNN(x_train.shape[1], #输入序列长度
+        lstm_cnn = TextCNN(x_train.shape[1], #输入序列长度
                          y_train.shape[1], #分类数目
                          FLAGS.embedding_size,#隐藏层大小
                          list(map(int, FLAGS.filter_sizes.split(","))),#卷积核尺寸
@@ -127,7 +129,7 @@ with tf.Graph().as_default():
         # 定义训练过程
         global_step = tf.Variable(0, name="global_step", trainable=False)  # 训练次数
         optimizer= tf.train.AdamOptimizer(1e-3)  # 优化算法
-        grads_and_vars = optimizer.compute_gradients(text_cnn.loss)  # 计算相关的梯度
+        grads_and_vars = optimizer.compute_gradients(lstm_cnn.loss)  # 计算相关的梯度
         train_op = optimizer.apply_gradients(grads_and_vars, global_step=global_step)  # 运用梯度(gradients)
 
         # 追踪梯度值和稀疏值
@@ -144,8 +146,8 @@ with tf.Graph().as_default():
         print("Writing to {}\n".format(out_dir))
 
         # 正确率与损失率
-        loss_summary = tf.summary.scalar("loss", text_cnn.loss)
-        acc_summary = tf.summary.scalar("accuracy", text_cnn.accuracy)
+        loss_summary = tf.summary.scalar("loss", lstm_cnn.loss)
+        acc_summary = tf.summary.scalar("accuracy", lstm_cnn.accuracy)
 
         # 训练总结
         train_summary_op = tf.summary.merge([loss_summary, acc_summary, grad_summaries_merged])
@@ -174,12 +176,12 @@ with tf.Graph().as_default():
             A single training step
             """
             feed_dict = {
-                text_cnn.input_x: x_batch,
-                text_cnn.input_y: y_batch,
-                text_cnn.dropout_keep_prob: FLAGS.dropout_keep_prob
+                lstm_cnn.input_x: x_batch,
+                lstm_cnn.input_y: y_batch,
+                lstm_cnn.dropout_keep_prob: FLAGS.dropout_keep_prob
             }
             _, step, summaries, loss, accuracy = sess.run(
-                [train_op, global_step, train_summary_op, text_cnn.loss, text_cnn.accuracy],
+                [train_op, global_step, train_summary_op, lstm_cnn.loss, lstm_cnn.accuracy],
                 feed_dict)
             time_str = datetime.datetime.now().isoformat()
             print("{}: step {}, loss {:g}, acc {:g}".format(time_str, step, loss, accuracy))
@@ -192,12 +194,12 @@ with tf.Graph().as_default():
             Evaluates model on a dev set
             """
             feed_dict = {
-                text_cnn.input_x: x_batch,
-                text_cnn.input_y: y_batch,
-                text_cnn.dropout_keep_prob: 1.0
+                lstm_cnn.input_x: x_batch,
+                lstm_cnn.input_y: y_batch,
+                lstm_cnn.dropout_keep_prob: 1.0
             }
             step, summaries, loss, accuracy = sess.run(
-                [global_step, dev_summary_op, text_cnn.loss, text_cnn.accuracy],
+                [global_step, dev_summary_op, lstm_cnn.loss, lstm_cnn.accuracy],
                 feed_dict)
             time_str = datetime.datetime.now().isoformat()
             print("{}: step {}, loss {:g}, acc {:g}".format(time_str, step, loss, accuracy))

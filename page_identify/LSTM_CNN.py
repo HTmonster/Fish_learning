@@ -20,86 +20,145 @@ import tensorflow as tf
 
 
 class LSTM_CNN(object):
+    # 1. Embed --> LSTM
+    # 2. LSTM --> CNN
+    # 3. CNN --> Pooling/Output
+
     def __init__(self,
-                 sequence_length,
-                 num_classes,
-                 vocab_size,
-                 embedding_size,
-                 filter_sizes,
-                 num_filters,
-                 l2_reg_lambda=0.0,
-                 num_hidden=100):
+                 sequence_length, #输入序列长度
+                 num_classes,     #分类数目
+                 vocab_size,      #词汇尺寸
+                 embedding_size,  #隐藏层尺寸
+                 filter_sizes,    #过滤器(卷积核)尺寸
+                 num_filters,     #过滤器(卷积核)数量
+                 l2_reg_lambda=0.0,#l2正则化参数
+                 ):
+        #L2正则化
+        self.l2_loss = tf.constant(0.0)
 
         #输入训练数据与验证数据以及dropout层
         self.input_x = tf.placeholder(tf.int32, [None, sequence_length], name="input_x")  # X - The Data
         self.input_y = tf.placeholder(tf.float32, [None, num_classes], name="input_y")  # Y - The Lables
         self.dropout_keep_prob = tf.placeholder(tf.float32, name="dropout_keep_prob")  # Dropout
 
-        l2_loss = tf.constant(0.0)  # Keeping track of l2 regularization loss
+        #隐藏层
+        self.EmbeddingLayer(vocab_size,embedding_size)
 
-        # 1. EMBEDDING LAYER ################################################################
-        with tf.device('/cpu:0'), tf.name_scope("embedding"):
+        #LSTM层
+        self.LSTMLayer()
+
+        #卷积层+maxpool层
+        num_filters_total=self.ConvMaxpoolLayer(sequence_length,embedding_size,filter_sizes,num_filters)
+
+        # Dropout层
+        self.DropoutLayer()
+
+        # 输出层 得分和预测
+        self.OutputLayer(num_filters_total,num_classes)
+
+        # loss
+        self.calc_loss(l2_reg_lambda)
+
+        # accuracy
+        self.calc_acc()
+
+
+#-------------------------------------------------------------------------------------
+
+    def EmbeddingLayer(self,vocab_size,embedding_size):
+        '''
+        隐藏层
+        :return:
+        '''
+        with tf.name_scope("embedding"):
             self.W = tf.Variable(tf.random_uniform([vocab_size, embedding_size], -1.0, 1.0), name="W")
-            self.embedded_chars = tf.nn.embedding_lookup(self.W, self.input_x)
+            self.embedded_chars = tf.nn.embedding_lookup(self.W, self.input_x) #embedding_lookup 选取一个张量里面对应的索引元素
             # self.embedded_chars_expanded = tf.expand_dims(self.embedded_chars, -1)
 
-        # 2. LSTM LAYER ######################################################################
+    def LSTMLayer(self):
+        '''
+        LSTM层
+        :return:
+        '''
         self.lstm_cell = tf.contrib.rnn.LSTMCell(32, state_is_tuple=True)
         # self.h_drop_exp = tf.expand_dims(self.h_drop,-1)
         self.lstm_out, self.lstm_state = tf.nn.dynamic_rnn(self.lstm_cell, self.embedded_chars, dtype=tf.float32)
-        # embed()
 
         self.lstm_out_expanded = tf.expand_dims(self.lstm_out, -1)
 
-        # 2. CONVOLUTION LAYER + MAXPOOLING LAYER (per filter) ###############################
+    def ConvMaxpoolLayer(self,sequence_length,embedding_size,filter_sizes,num_filters):
+        '''
+        卷积层+maxpool层
+        :return:
+        '''
         pooled_outputs = []
         for i, filter_size in enumerate(filter_sizes):
             with tf.name_scope("conv-maxpool-%s" % filter_size):
-                # CONVOLUTION LAYER
+                #卷积层 以LSTM层的输出为输入
                 filter_shape = [filter_size, embedding_size, 1, num_filters]
+
                 W = tf.Variable(tf.truncated_normal(filter_shape, stddev=0.1), name="W")
                 b = tf.Variable(tf.constant(0.1, shape=[num_filters]), name="b")
+
                 conv = tf.nn.conv2d(self.lstm_out_expanded, W, strides=[1, 1, 1, 1], padding="VALID", name="conv")
-                # NON-LINEARITY
+
+                #非线性化
                 h = tf.nn.relu(tf.nn.bias_add(conv, b), name="relu")
-                # MAXPOOLING
+
+                #每一个卷积层的池化层
                 pooled = tf.nn.max_pool(h, ksize=[1, sequence_length - filter_size + 1, 1, 1], strides=[1, 1, 1, 1],
                                         padding='VALID', name="pool")
                 pooled_outputs.append(pooled)
 
-        # COMBINING POOLED FEATURES
+        # 结合所有的池化层
         num_filters_total = num_filters * len(filter_sizes)
         self.h_pool = tf.concat(pooled_outputs, 3)
         self.h_pool_flat = tf.reshape(self.h_pool, [-1, num_filters_total])
 
-        # #3. DROPOUT LAYER ###################################################################
+        return num_filters_total
+
+    def DropoutLayer(self):
+        '''
+        Dropout层
+        :return:
+        '''
         with tf.name_scope("dropout"):
             self.h_drop = tf.nn.dropout(self.h_pool_flat, self.dropout_keep_prob)
 
-        # Final (unnormalized) scores and predictions
+    def OutputLayer(self,num_filters_total,num_classes):
+        '''
+        输出层 并计算L2正则化损失 得分和预测
+        :param num_filters_total: 卷积层的所有大小
+        :param num_classes: 分类数目
+        :return:
+        '''
+
         with tf.name_scope("output"):
             W = tf.get_variable(
                 "W",
                 shape=[num_filters_total, num_classes],
                 initializer=tf.contrib.layers.xavier_initializer())
             b = tf.Variable(tf.constant(0.1, shape=[num_classes]), name="b")
-            l2_loss += tf.nn.l2_loss(W)
-            l2_loss += tf.nn.l2_loss(b)
+
+            self.l2_loss += tf.nn.l2_loss(W)
+            self.l2_loss += tf.nn.l2_loss(b)
             self.scores = tf.nn.xw_plus_b(self.h_drop, W, b, name="scores")
             self.predictions = tf.argmax(self.scores, 1, name="predictions")
 
-        # CalculateMean cross-entropy loss
+    def calc_loss(self,l2_reg_lambda):
+        '''
+        计算损失率
+        :return:
+        '''
         with tf.name_scope("loss"):
             losses = tf.nn.softmax_cross_entropy_with_logits(logits=self.scores, labels=self.input_y)
-            self.loss = tf.reduce_mean(losses) + l2_reg_lambda * l2_loss
+            self.loss = tf.reduce_mean(losses) + l2_reg_lambda * self.l2_loss
 
-        # Accuracy
+    def calc_acc(self):
+        '''
+        计算正确率
+        :return:
+        '''
         with tf.name_scope("accuracy"):
             correct_predictions = tf.equal(self.predictions, tf.argmax(self.input_y, 1))
             self.accuracy = tf.reduce_mean(tf.cast(correct_predictions, "float"), name="accuracy")
-
-        # embed()
-
-# 1. Embed --> LSTM
-# 2. LSTM --> CNN
-# 3. CNN --> Pooling/Output
