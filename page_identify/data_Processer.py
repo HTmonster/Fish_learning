@@ -15,6 +15,7 @@
 # e-mail:Theo_hui@163.com
 # purpose: 对数据进行处理
 # creatData:2019/5/9
+import copy
 import re
 import string
 
@@ -209,13 +210,88 @@ def one_hot_char(urls,max_sequence_length):
                 embed_matrix[i,j,index]=1.
     return (embed_matrix,num_characters)
 
+def clean_split_url_w2vec(url_str):
+    # 先将字节数组转换为字符
+    url_str = str(url_str)
+
+    # 去掉常见的字符
+    url_str = re.sub(r"http://", "", url_str)
+    url_str = re.sub(r"https://", "", url_str)
+    url_str = re.sub(r".html$", "", url_str)
+    url_str = re.sub(r".htm$", "", url_str)
+
+    #分隔字符
+    url_str=re.split(r"[/=-?.&]",url_str)
+
+    return url_str
+
+
+
+def load_positive_negative_url_files_w2vec(positive_url_file,negative_url_file):
+    '''
+    加载恶意的还有正常的URL  word2vec方案 （对单词进行处理）
+    :param positive_url_file:
+    :param negative_url_file:
+    :return:
+    '''
+
+    #从CSV文件中读取数据
+    positive_url_data = pd.read_csv(positive_url_file,usecols=[0]).values
+    negative_url_data = pd.read_csv(negative_url_file,usecols=[0]).values
+
+    print(positive_url_data)
+    print(negative_url_data)
+
+    #对数据进行简单的清洗
+    positive_clean_split_url_data=[clean_split_url_w2vec(url_data[0]) for url_data in positive_url_data]
+    negative_clean_split_url_data=[clean_split_url_w2vec(url_data[0]) for url_data in negative_url_data]
+
+
+    print(positive_clean_split_url_data)
+    print(negative_clean_split_url_data)
+
+    # 将数据进行结合
+    x_text = positive_clean_split_url_data + negative_clean_split_url_data
+
+    # 产生标签
+    positive_labels = [[0, 1] for _ in positive_clean_split_url_data]
+    negative_labels = [[1, 0] for _ in negative_clean_split_url_data]
+    y = np.concatenate([positive_labels, negative_labels], 0)
+
+    return [x_text,y]
+
+def padding_url_w2vec(urls,padding_token="<PADDING>", padding_url_length = None):
+    '''
+    对URL集合进行对齐处理
+    :param url:要处理的url集合
+    :return:
+    '''
+
+    #最大长度
+    max_url_length=padding_url_length if padding_url_length else max([len(url) for url in urls])
+
+    print("\n********padding url {} *******\n".format(max_url_length))
+
+    #对齐处理
+    padding_urls=[]
+    for url in urls:
+        if len(url)>max_url_length:
+            url=url[:max_url_length]
+            padding_urls.append(copy.deepcopy(url))
+        else:
+            url.extend([padding_token for _ in range(max_url_length-len(url))])
+            padding_urls.append(url)
+
+
+    return (padding_urls,max_url_length)
+
 
 if __name__ == '__main__':
 
     # print(load_csv_file("./data/NegativeFile6.csv"))
     # print(load_csv_file("./data/PositiveFile6.csv"))
-    # print(load_positive_negtive_data_files("./data/PositiveFile6.csv","./data/NegativeFile6.csv"))
+    #print(load_positive_negative_url_files_w2vec("./data/PositiveFile6.csv","./data/NegativeFile6.csv"))
 
     #load_url_csv_file("./data/normalURL/Arts.csv")
-    #load_positive_negative_url_files("./data/positive_urls.csv","./data/negative_urls.csv")
+    load_positive_negative_url_files_w2vec("./data/positive_urls.csv","./data/negative_urls.csv")
     print("he")
